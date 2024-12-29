@@ -118,6 +118,7 @@ func (srv *Server) handleConn(conn net.Conn) {
 			c.logger.Infof("Server closed")
 			return
 		}
+		c.handler.OnError()
 		c.logger.Errorf("Server closed by error: Err = %+v", err)
 	}
 }
