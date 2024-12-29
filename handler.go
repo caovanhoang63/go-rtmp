@@ -31,4 +31,5 @@ type Handler interface {
 	OnUnknownDataMessage(timestamp uint32, data *message.DataMessage) error
 	OnClose()
 	OnError(e error)
+	OnStop()
 }

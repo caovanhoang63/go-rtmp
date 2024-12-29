@@ -116,6 +116,7 @@ func (srv *Server) handleConn(conn net.Conn) {
 	if err := sc.Serve(); err != nil {
 		if err == io.EOF {
 			c.logger.Infof("Server closed")
+			c.handler.OnStop()
 			return
 		}
 		c.handler.OnError(err)

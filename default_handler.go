@@ -83,3 +83,7 @@ func (h *DefaultHandler) OnClose() {
 func (h *DefaultHandler) OnError(e error) {
 
 }
+
+func (h *DefaultHandler) OnStop() {
+
+}
