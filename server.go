@@ -8,11 +8,10 @@
 package rtmp
 
 import (
+	"github.com/pkg/errors"
 	"io"
 	"net"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 type Server struct {
@@ -37,9 +36,7 @@ func (srv *Server) Serve(l net.Listener) error {
 	if err := srv.registerListener(l); err != nil {
 		return errors.Wrap(err, "Already served")
 	}
-
 	defer l.Close()
-
 	for {
 		rwc, err := l.Accept()
 		if err != nil {

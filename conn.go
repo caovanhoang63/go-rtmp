@@ -10,9 +10,11 @@ package rtmp
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -39,9 +41,9 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	Handler                   Handler
-	SkipHandshakeVerification bool
-
+	Handler                                 Handler
+	SkipHandshakeVerification               bool
+	Timeout                                 time.Duration
 	IgnoreMessagesOnNotExistStream          bool
 	IgnoreMessagesOnNotExistStreamThreshold uint32
 
@@ -158,23 +160,34 @@ func (c *Conn) handleMessageLoop() (err error) {
 func (c *Conn) runHandleMessageLoop() error {
 	var cmsg ChunkMessage
 	for {
+		timeout := time.After(c.config.Timeout)
 		select {
 		case <-c.streamer.Done():
 			return c.streamer.Err()
-
+		case <-timeout:
+			return fmt.Errorf("read operation timed out after %d seconds", c.config.Timeout)
 		default:
-			chunkStreamID, timestamp, err := c.streamer.Read(&cmsg)
-			if err != nil {
-				return err
-			}
-
-			if err := c.handleMessage(chunkStreamID, timestamp, &cmsg); err != nil {
-				return err // Shutdown the connection
+			done := make(chan error)
+			go func() {
+				chunkStreamID, timestamp, err := c.streamer.Read(&cmsg)
+				if err != nil {
+					done <- err
+					return
+				}
+				err = c.handleMessage(chunkStreamID, timestamp, &cmsg)
+				done <- err
+			}()
+			select {
+			case err := <-done:
+				if err != nil {
+					return err
+				}
+			case <-timeout:
+				return fmt.Errorf("read operation timed out after %d seconds", c.config.Timeout)
 			}
 		}
 	}
 }
-
 func (c *Conn) handleMessage(chunkStreamID int, timestamp uint32, cmsg *ChunkMessage) error {
 	stream, err := c.streams.At(cmsg.StreamID)
 	if err != nil {
