@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 
@@ -147,6 +148,10 @@ func (h *Handler) OnVideo(timestamp uint32, payload io.Reader) error {
 	})
 
 	return nil
+}
+
+func (h *Handler) OnError(e error) {
+	fmt.Printf("OnError(%#v)", e)
 }
 
 func (h *Handler) OnClose() {

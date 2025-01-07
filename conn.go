@@ -159,13 +159,21 @@ func (c *Conn) handleMessageLoop() (err error) {
 
 func (c *Conn) runHandleMessageLoop() error {
 	var cmsg ChunkMessage
+	var shouldTimeout bool = true // Thêm biến flag để kiểm soát timeout
+
 	for {
-		timeout := time.After(c.config.Timeout)
+		var timeoutChan <-chan time.Time
+		if shouldTimeout {
+			timeoutChan = time.After(c.config.Timeout)
+		}
+
 		select {
 		case <-c.streamer.Done():
 			return c.streamer.Err()
-		case <-timeout:
-			return fmt.Errorf("read operation timed out after %d seconds", c.config.Timeout)
+		case <-timeoutChan:
+			if shouldTimeout {
+				return fmt.Errorf("read operation timed out")
+			}
 		default:
 			done := make(chan error)
 			go func() {
@@ -175,19 +183,28 @@ func (c *Conn) runHandleMessageLoop() error {
 					return
 				}
 				err = c.handleMessage(chunkStreamID, timestamp, &cmsg)
+				stream, err := c.streams.At(cmsg.StreamID)
+				if err == nil && stream.handler.State().String() == "Play(Server)" {
+					fmt.Println("player")
+					shouldTimeout = false // Tắt timeout khi ở trạng thái Play(Server)
+				}
 				done <- err
 			}()
+
 			select {
 			case err := <-done:
 				if err != nil {
 					return err
 				}
-			case <-timeout:
-				return fmt.Errorf("read operation timed out after %d seconds", c.config.Timeout)
+			case <-timeoutChan:
+				if shouldTimeout {
+					return fmt.Errorf("read operation timed out")
+				}
 			}
 		}
 	}
 }
+
 func (c *Conn) handleMessage(chunkStreamID int, timestamp uint32, cmsg *ChunkMessage) error {
 	stream, err := c.streams.At(cmsg.StreamID)
 	if err != nil {

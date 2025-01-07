@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yutopp/go-rtmp"
@@ -24,7 +25,6 @@ func main() {
 	srv := rtmp.NewServer(&rtmp.ServerConfig{
 		OnConnect: func(conn net.Conn) (io.ReadWriteCloser, *rtmp.ConnConfig) {
 			l := log.StandardLogger()
-			//l.SetLevel(logrus.DebugLevel)
 
 			h := &Handler{
 				relayService: relayService,
@@ -32,7 +32,7 @@ func main() {
 
 			return conn, &rtmp.ConnConfig{
 				Handler: h,
-
+				Timeout: 5 * time.Second,
 				ControlState: rtmp.StreamControlStateConfig{
 					DefaultBandwidthWindowSize: 6 * 1024 * 1024 / 8,
 				},
